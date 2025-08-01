@@ -51,5 +51,6 @@ I've got a LOT of code and configuration that I haven't actually seen yet. Time 
 
 ***14:00 - 15:00 - Deployment***
 
-Need to identify a cloud provider then deploy the app. I've already got everything containerized, so hopefully it won't be too painful.
+* Put the app behind a load balancer with Docker Swarm and spun up 4 replicas of the service. We're up to 139.4 requests/second.
+* Need to identify a cloud provider then deploy the app. I've already got everything containerized, so hopefully it won't be too painful.
 

@@ -1,10 +1,10 @@
 # OCI Configuration - Copy this to terraform.tfvars and fill in your values
 
 # Your OCI tenancy OCID (found in OCI Console -> Profile -> Tenancy)
-tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaa2abdovpnbayulsjb6vo3huxutgrwiet4kl5hc2akkhk6ehjt5mka"
+tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaa..."
 
 # Your user OCID (found in OCI Console -> Profile -> User Settings)
-user_ocid = "ocid1.user.oc1..aaaaaaaavxocsxa3owvnsuskcuqgn2pqgua2ekol2dpjbpmge3pyl2jmkula"
+user_ocid = "ocid1.user.oc1..aaaaaaaa..."
 
 # Your API key fingerprint (found in OCI Console -> Profile -> API Keys)
 fingerprint = "12:34:56:78:9a:bc:de:f0:12:34:56:78:9a:bc:de:f0"

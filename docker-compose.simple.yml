@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # PDF Scanner Application - Simplified for demo
+  pdf-scanner:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_DB=pdf_scanner
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - MAX_FILE_SIZE=52428800
+      - MAX_PDF_PAGES=500
+      - PDF_PROCESSING_TIMEOUT=120
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    networks:
+      - pdf_network
+    depends_on:
+      - clickhouse
+    restart: unless-stopped
+
+  # Database
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_DB: pdf_scanner
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 0
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - pdf_network
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - pdf_network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  # Monitoring Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=demo123
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - pdf_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+networks:
+  pdf_network:
+    driver: bridge
+
+volumes:
+  clickhouse_data:
+  prometheus_data:
+  grafana_data:
+  uploads_data:
+  logs_data:

@@ -1,0 +1,112 @@
+#cloud-config
+package_upgrade: true
+
+packages:
+  - docker
+  - docker-compose
+  - git
+  - curl
+
+runcmd:
+  # Enable and start Docker
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker opc
+  
+  # Configure firewall for required ports
+  - firewall-cmd --permanent --add-port=22/tcp
+  - firewall-cmd --permanent --add-port=80/tcp
+  - firewall-cmd --permanent --add-port=443/tcp
+  - firewall-cmd --permanent --add-port=8000/tcp
+  - firewall-cmd --permanent --add-port=9090/tcp
+  - firewall-cmd --permanent --add-port=3000/tcp
+  - firewall-cmd --permanent --add-port=8123/tcp
+  - firewall-cmd --permanent --add-port=2377/tcp
+  - firewall-cmd --permanent --add-port=7946/tcp
+  - firewall-cmd --permanent --add-port=7946/udp
+  - firewall-cmd --permanent --add-port=4789/udp
+  - firewall-cmd --reload
+  
+  # Create app directory
+  - mkdir -p /home/opc/pdf-scanner
+  - chown opc:opc /home/opc/pdf-scanner
+  
+  # Create docker-compose file
+  - echo "${docker_compose_content}" | base64 -d > /home/opc/pdf-scanner/docker-compose.yml
+  
+  # Clone application (minimal approach - just get the files we need)
+  - |
+    cat > /home/opc/pdf-scanner/Dockerfile << 'EOF'
+    FROM python:3.11-slim as builder
+    RUN apt-get update && apt-get install -y \
+        build-essential \
+        gcc \
+        g++ \
+        && rm -rf /var/lib/apt/lists/*
+    RUN python -m venv /opt/venv
+    ENV PATH="/opt/venv/bin:$PATH"
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir --upgrade pip
+    RUN pip install --no-cache-dir -r requirements.txt
+
+    FROM python:3.11-slim
+    RUN apt-get update && apt-get install -y \
+        curl \
+        && rm -rf /var/lib/apt/lists/*
+    COPY --from=builder /opt/venv /opt/venv
+    RUN groupadd -r appuser && useradd -r -g appuser appuser
+    WORKDIR /app
+    COPY backend/ ./backend/
+    COPY static/ ./static/
+    COPY requirements.txt .
+    RUN mkdir -p uploads logs /tmp/prometheus_multiproc && \
+        chown -R appuser:appuser /app && \
+        chmod 777 /tmp/prometheus_multiproc
+    ENV PATH="/opt/venv/bin:$PATH"
+    USER appuser
+    EXPOSE 8000
+    CMD ["python", "-m", "uvicorn", "backend.pdf_scanner:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+    EOF
+
+  # Create startup script
+  - |
+    cat > /home/opc/pdf-scanner/start.sh << 'EOF'
+    #!/bin/bash
+    cd /home/opc/pdf-scanner
+    
+    # Initialize single-node swarm
+    docker swarm init || true
+    
+    # Start the application
+    docker-compose up -d
+    
+    echo "PDF Scanner is starting up..."
+    echo "Application will be available at:"
+    echo "  Main App: http://$(curl -s ifconfig.me)"
+    echo "  Prometheus: http://$(curl -s ifconfig.me):9090"
+    echo "  Grafana: http://$(curl -s ifconfig.me):3000"
+    EOF
+  
+  - chmod +x /home/opc/pdf-scanner/start.sh
+  - chown -R opc:opc /home/opc/pdf-scanner
+
+write_files:
+  - path: /home/opc/pdf-scanner/requirements.txt
+    content: |
+      fastapi==0.116.1
+      uvicorn[standard]==0.35.0
+      python-multipart==0.0.20
+      pdfplumber==0.11.7
+      PyPDF2==3.0.1
+      PyMuPDF==1.25.1
+      pypdfium2==4.30.0
+      pdfminer.six==20250506
+      reportlab==4.4.3
+      clickhouse-connect==0.8.18
+      prometheus-client==0.21.1
+      psutil==6.1.1
+      Pillow==11.3.0
+    owner: opc:opc
+    permissions: "0644"
+
+final_message: "PDF Scanner cloud-init setup complete. Run /home/opc/pdf-scanner/start.sh to start the application."
