@@ -1,0 +1,140 @@
+groups:
+  - name: pdf_scanner_scaling
+    rules:
+      # High CPU utilization - scale up
+      - alert: PDFScannerHighCPU
+        expr: rate(container_cpu_usage_seconds_total{name=~"pdf-scanner.*"}[5m]) * 100 > 70
+        for: 2m
+        labels:
+          severity: warning
+          action: scale_up
+        annotations:
+          summary: "PDF Scanner high CPU usage"
+          description: "PDF Scanner CPU usage is {{ $value }}% for more than 2 minutes"
+          recommended_action: "Scale up PDF scanner replicas"
+
+      # High memory utilization - scale up  
+      - alert: PDFScannerHighMemory
+        expr: (container_memory_usage_bytes{name=~"pdf-scanner.*"} / container_spec_memory_limit_bytes{name=~"pdf-scanner.*"}) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+          action: scale_up
+        annotations:
+          summary: "PDF Scanner high memory usage"
+          description: "PDF Scanner memory usage is {{ $value }}% for more than 2 minutes"
+          recommended_action: "Scale up PDF scanner replicas"
+
+      # High request rate - scale up
+      - alert: PDFScannerHighRequestRate
+        expr: rate(http_requests_total{job="pdf-scanner"}[5m]) > 50
+        for: 1m
+        labels:
+          severity: warning
+          action: scale_up
+        annotations:
+          summary: "PDF Scanner high request rate"
+          description: "PDF Scanner receiving {{ $value }} requests/second"
+          recommended_action: "Scale up PDF scanner replicas"
+
+      # High response time - scale up
+      - alert: PDFScannerSlowResponse
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="pdf-scanner"}[5m])) > 2.0
+        for: 2m
+        labels:
+          severity: warning
+          action: scale_up
+        annotations:
+          summary: "PDF Scanner slow response times"
+          description: "PDF Scanner 95th percentile response time is {{ $value }}s"
+          recommended_action: "Scale up PDF scanner replicas"
+
+      # Low CPU utilization - scale down
+      - alert: PDFScannerLowCPU
+        expr: rate(container_cpu_usage_seconds_total{name=~"pdf-scanner.*"}[5m]) * 100 < 20
+        for: 5m
+        labels:
+          severity: info
+          action: scale_down
+        annotations:
+          summary: "PDF Scanner low CPU usage"
+          description: "PDF Scanner CPU usage is {{ $value }}% for more than 5 minutes"
+          recommended_action: "Consider scaling down PDF scanner replicas"
+
+      # Service down - immediate alert
+      - alert: PDFScannerDown
+        expr: up{job="pdf-scanner"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          action: investigate
+        annotations:
+          summary: "PDF Scanner service is down"
+          description: "PDF Scanner service has been down for more than 30 seconds"
+          recommended_action: "Check service health and restart if necessary"
+
+      # Load balancer down
+      - alert: LoadBalancerDown
+        expr: up{job="nginx"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          action: investigate
+        annotations:
+          summary: "Load balancer is down"
+          description: "Load balancer has been down for more than 30 seconds"
+          recommended_action: "Check NGINX service and restart if necessary"
+
+  - name: pdf_scanner_capacity
+    rules:
+      # Calculate service capacity metrics
+      - record: pdf_scanner:request_rate_5m
+        expr: sum(rate(http_requests_total{job="pdf-scanner"}[5m]))
+
+      - record: pdf_scanner:error_rate_5m
+        expr: sum(rate(http_requests_total{job="pdf-scanner",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="pdf-scanner"}[5m]))
+
+      - record: pdf_scanner:cpu_usage_avg
+        expr: avg(rate(container_cpu_usage_seconds_total{name=~"pdf-scanner.*"}[5m]) * 100)
+
+      - record: pdf_scanner:memory_usage_avg
+        expr: avg((container_memory_usage_bytes{name=~"pdf-scanner.*"} / container_spec_memory_limit_bytes{name=~"pdf-scanner.*"}) * 100)
+
+      - record: pdf_scanner:response_time_p95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="pdf-scanner"}[5m])) by (le))
+
+      - record: pdf_scanner:active_replicas
+        expr: count(up{job="pdf-scanner"} == 1)
+
+  - name: auto_scaling_recommendations
+    rules:
+      # Scaling recommendation based on multiple factors
+      - record: pdf_scanner:scale_up_score
+        expr: |
+          (
+            (pdf_scanner:cpu_usage_avg > 70) * 3 +
+            (pdf_scanner:memory_usage_avg > 80) * 3 +
+            (pdf_scanner:request_rate_5m > 50) * 2 +
+            (pdf_scanner:response_time_p95 > 2.0) * 2 +
+            (pdf_scanner:error_rate_5m > 0.01) * 1
+          )
+
+      - record: pdf_scanner:scale_down_score
+        expr: |
+          (
+            (pdf_scanner:cpu_usage_avg < 20) * 2 +
+            (pdf_scanner:memory_usage_avg < 40) * 1 +
+            (pdf_scanner:request_rate_5m < 10) * 2 +
+            (pdf_scanner:response_time_p95 < 0.5) * 1
+          )
+
+      # Recommended replica count
+      - record: pdf_scanner:recommended_replicas
+        expr: |
+          clamp_min(
+            clamp_max(
+              ceil(pdf_scanner:request_rate_5m / 25), # 25 requests per replica target
+              10 # max replicas
+            ),
+            1 # min replicas
+          )

@@ -1,4 +1,33 @@
 services:
+  # PDF Scanner Application
+  pdf-scanner:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_DB=pdf_scanner
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=
+      - MAX_FILE_SIZE=52428800
+      - MAX_PDF_PAGES=500
+      - PDF_PROCESSING_TIMEOUT=120
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      - clickhouse
+      - prometheus
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     ports:

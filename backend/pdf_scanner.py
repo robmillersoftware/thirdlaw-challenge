@@ -8,7 +8,10 @@ import os
 import tempfile
 import gc
 import weakref
+import time
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import threading
 
 @dataclass
 class Finding:
@@ -16,6 +19,25 @@ class Finding:
     value: str
     page: int
     position: Dict[str, Any] = None
+
+class PDFTimeoutError(Exception):
+    """Raised when PDF processing takes too long."""
+    pass
+
+def with_timeout(timeout_seconds: int = 60):
+    """Decorator to add timeout protection to PDF processing functions using ThreadPoolExecutor."""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            # Use ThreadPoolExecutor for timeout - works in any thread
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(func, *args, **kwargs)
+                try:
+                    result = future.result(timeout=timeout_seconds)
+                    return result
+                except FutureTimeoutError:
+                    raise PDFTimeoutError(f"PDF processing exceeded {timeout_seconds} seconds")
+        return wrapper
+    return decorator
 
 class PDFScanner:
     def __init__(self):
@@ -31,8 +53,13 @@ class PDFScanner:
             re.compile(r'\b\d{9}\b'),  # XXXXXXXXX (9 consecutive digits)
         ]
         
-        # Track active PDF objects for memory management
-        self._active_pdfs = weakref.WeakSet()
+        # Memory management handled through context managers and finally blocks
+        
+        # Processing limits for oversized PDFs
+        self.MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', 50 * 1024 * 1024))  # 50MB default
+        self.MAX_PAGES = int(os.getenv('MAX_PDF_PAGES', 500))  # 500 pages max
+        self.MAX_PAGE_SIZE = int(os.getenv('MAX_PAGE_SIZE', 10 * 1024 * 1024))  # 10MB per page
+        self.PROCESSING_TIMEOUT = int(os.getenv('PDF_PROCESSING_TIMEOUT', 120))  # 2 minutes
     
     @contextmanager
     def _memory_managed_processing(self):
@@ -43,21 +70,45 @@ class PDFScanner:
             # Force garbage collection after processing
             gc.collect()
 
+    @with_timeout(120)  # 2 minute timeout
     def scan_pdf(self, file_path: str) -> Dict[str, Any]:
         """
-        Scan a PDF file for sensitive data with memory optimization.
+        Scan a PDF file for sensitive data with memory optimization and timeout protection.
         Returns a dictionary with scan results.
         """
+        # Pre-validation checks
+        if not os.path.exists(file_path):
+            return {
+                'status': 'error',
+                'error': 'File not found',
+                'file_size': 0
+            }
+        
+        file_size = os.path.getsize(file_path)
+        
+        # Check file size before processing
+        if file_size > self.MAX_FILE_SIZE:
+            return {
+                'status': 'error',
+                'error': f'File too large: {file_size} bytes exceeds limit of {self.MAX_FILE_SIZE} bytes',
+                'file_size': file_size
+            }
+        
+        # Validate PDF format
+        if not self.is_valid_pdf(file_path):
+            return {
+                'status': 'error',
+                'error': 'Invalid or corrupt PDF file',
+                'file_size': file_size
+            }
         with self._memory_managed_processing():
             try:
                 findings = []
                 total_pages = 0
-                file_size = os.path.getsize(file_path)
                 
                 # Try pdfplumber first (better text extraction)
                 try:
                     with pdfplumber.open(file_path) as pdf:
-                        self._active_pdfs.add(pdf)
                         total_pages = len(pdf.pages)
                         
                         # Process pages in batches to manage memory
@@ -132,11 +183,26 @@ class PDFScanner:
                     'findings_count': len(unique_findings)
                 }
                 
+            except PDFTimeoutError as e:
+                return {
+                    'status': 'error',
+                    'error': f'PDF processing timeout: {str(e)}',
+                    'file_size': file_size,
+                    'error_type': 'timeout'
+                }
+            except MemoryError as e:
+                return {
+                    'status': 'error',
+                    'error': f'PDF too large for available memory: {str(e)}',
+                    'file_size': file_size,
+                    'error_type': 'memory'
+                }
             except Exception as e:
                 return {
                     'status': 'error',
-                    'error': str(e),
-                    'file_size': os.path.getsize(file_path) if os.path.exists(file_path) else 0
+                    'error': f'PDF processing failed: {str(e)}',
+                    'file_size': file_size,
+                    'error_type': 'processing'
                 }
 
     def _scan_text(self, text: str, page_num: int) -> List[Finding]:
@@ -182,12 +248,67 @@ class PDFScanner:
         return unique_findings
 
     def is_valid_pdf(self, file_path: str) -> bool:
-        """Check if file is a valid PDF."""
+        """Check if file is a valid PDF with comprehensive corruption detection."""
         try:
+            if not os.path.exists(file_path):
+                return False
+            
+            file_size = os.path.getsize(file_path)
+            
+            # Check file size limits
+            if file_size == 0:
+                return False
+            if file_size > self.MAX_FILE_SIZE:
+                return False
+            
             with open(file_path, 'rb') as file:
                 # Check PDF header
                 header = file.read(4)
-                return header == b'%PDF'
+                if header != b'%PDF':
+                    return False
+                
+                # Try to read version info
+                file.seek(0)
+                first_line = file.readline()
+                if not first_line.startswith(b'%PDF-'):
+                    return False
+                
+                # Look for EOF marker
+                file.seek(-1024, 2)  # Go to last 1KB
+                last_chunk = file.read()
+                if b'%%EOF' not in last_chunk:
+                    return False
+                
+                # Try to parse with PyPDF2 for deeper validation
+                file.seek(0)
+                try:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    page_count = len(pdf_reader.pages)
+                    
+                    # Check page count limits
+                    if page_count > self.MAX_PAGES:
+                        return False
+                    
+                    # Try to access first page (detect structural corruption)
+                    if page_count > 0:
+                        first_page = pdf_reader.pages[0]
+                        # Try to extract something from first page
+                        first_page.extract_text()
+                        
+                except Exception:
+                    # If PyPDF2 fails, try pdfplumber as fallback
+                    try:
+                        with pdfplumber.open(file_path) as pdf:
+                            if len(pdf.pages) > self.MAX_PAGES:
+                                return False
+                            # Try to access first page
+                            if len(pdf.pages) > 0:
+                                pdf.pages[0].extract_text()
+                    except Exception:
+                        return False
+                
+                return True
+                
         except Exception:
             return False
 
@@ -222,6 +343,7 @@ class PDFScanner:
                     'error': str(e)
                 }
 
+    @with_timeout(180)  # 3 minute timeout for redaction
     def create_redacted_pdf(self, file_path: str, findings: List[Finding], output_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Create a redacted version of the PDF with sensitive data blacked out.
@@ -245,7 +367,6 @@ class PDFScanner:
                 
                 # Open PDF with PyMuPDF
                 doc = fitz.open(file_path)
-                self._active_pdfs.add(doc)
                 
                 redacted_count = 0
                 
@@ -307,6 +428,7 @@ class PDFScanner:
                     except:
                         pass
 
+    @with_timeout(240)  # 4 minute timeout for scan and redact
     def scan_and_redact_pdf(self, file_path: str, output_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Scan a PDF for sensitive data and create a redacted version.
