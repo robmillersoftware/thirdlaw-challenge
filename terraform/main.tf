@@ -56,9 +56,17 @@ provider "oci" {
   region           = var.region
 }
 
-# Get availability domain
+# Get availability domains
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
+}
+
+# Local values for AD selection
+locals {
+  # Try to use an AD that's likely to have capacity
+  selected_ad = data.oci_identity_availability_domains.ads.availability_domains[
+    length(data.oci_identity_availability_domains.ads.availability_domains) > 1 ? 1 : 0
+  ].name
 }
 
 # VCN
@@ -174,7 +182,7 @@ resource "oci_core_default_security_list" "pdf_scanner_sl" {
 
 # Subnet
 resource "oci_core_subnet" "pdf_scanner_subnet" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = local.selected_ad
   cidr_block          = "10.1.20.0/24"
   display_name        = "pdf-scanner-subnet"
   compartment_id      = var.compartment_ocid
@@ -195,9 +203,10 @@ data "oci_core_images" "oracle_linux" {
   }
 }
 
-# Compute Instance (Always Free ARM)
+# Compute Instance (Always Free ARM) - Try multiple ADs
 resource "oci_core_instance" "pdf_scanner" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  count               = 1
+  availability_domain = local.selected_ad
   compartment_id      = var.compartment_ocid
   display_name        = "pdf-scanner-demo"
   shape               = "VM.Standard.A1.Flex"
@@ -233,19 +242,19 @@ resource "oci_core_instance" "pdf_scanner" {
 # Outputs
 output "instance_public_ip" {
   description = "Public IP of the PDF Scanner instance"
-  value       = oci_core_instance.pdf_scanner.public_ip
+  value       = oci_core_instance.pdf_scanner[0].public_ip
 }
 
 output "ssh_connection" {
   description = "SSH connection command"
-  value       = "ssh opc@${oci_core_instance.pdf_scanner.public_ip}"
+  value       = "ssh opc@${oci_core_instance.pdf_scanner[0].public_ip}"
 }
 
 output "application_urls" {
   description = "Application access URLs"
   value = {
-    pdf_scanner = "http://${oci_core_instance.pdf_scanner.public_ip}"
-    prometheus  = "http://${oci_core_instance.pdf_scanner.public_ip}:9090"
-    grafana     = "http://${oci_core_instance.pdf_scanner.public_ip}:3000"
+    pdf_scanner = "http://${oci_core_instance.pdf_scanner[0].public_ip}"
+    prometheus  = "http://${oci_core_instance.pdf_scanner[0].public_ip}:9090"
+    grafana     = "http://${oci_core_instance.pdf_scanner[0].public_ip}:3000"
   }
 }
