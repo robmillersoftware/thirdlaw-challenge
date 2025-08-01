@@ -1,0 +1,81 @@
+{
+  "test_metadata": {
+    "timestamp": 1754068148.5951328,
+    "test_duration": 0.43,
+    "pdf_directory": "test_pdfs",
+    "base_url": "http://localhost:8000"
+  },
+  "metrics": {
+    "total_requests": 5,
+    "successful_requests": 5,
+    "failed_requests": 0,
+    "success_rate_percent": 100.0,
+    "total_duration_seconds": 0.43,
+    "requests_per_second": 11.75,
+    "avg_response_time_ms": 399.46,
+    "min_response_time_ms": 363.38,
+    "max_response_time_ms": 424.07,
+    "p50_response_time_ms": 423.12,
+    "p95_response_time_ms": 423.9,
+    "p99_response_time_ms": 424.04,
+    "avg_processing_time_ms": 269.8,
+    "total_findings": 62,
+    "total_redactions": 0,
+    "avg_findings_per_doc": 12.4,
+    "total_bytes_processed": 22012,
+    "mb_per_second": 0.05,
+    "error_types": {}
+  },
+  "detailed_results": [
+    {
+      "filename": "test_document_0478.pdf",
+      "response_time_ms": 363.37828636169434,
+      "processing_time_ms": 240,
+      "success": true,
+      "findings_count": 5,
+      "redacted_count": 0,
+      "file_size": 2387,
+      "error": null
+    },
+    {
+      "filename": "test_document_0904.pdf",
+      "response_time_ms": 363.55113983154297,
+      "processing_time_ms": 299,
+      "success": true,
+      "findings_count": 13,
+      "redacted_count": 0,
+      "file_size": 4957,
+      "error": null
+    },
+    {
+      "filename": "test_document_0812.pdf",
+      "response_time_ms": 423.198938369751,
+      "processing_time_ms": 355,
+      "success": true,
+      "findings_count": 22,
+      "redacted_count": 0,
+      "file_size": 6189,
+      "error": null
+    },
+    {
+      "filename": "test_document_0035.pdf",
+      "response_time_ms": 423.12002182006836,
+      "processing_time_ms": 244,
+      "success": true,
+      "findings_count": 7,
+      "redacted_count": 0,
+      "file_size": 2312,
+      "error": null
+    },
+    {
+      "filename": "test_document_0439.pdf",
+      "response_time_ms": 424.0710735321045,
+      "processing_time_ms": 211,
+      "success": true,
+      "findings_count": 15,
+      "redacted_count": 0,
+      "file_size": 6167,
+      "error": null
+    }
+  ]
+}

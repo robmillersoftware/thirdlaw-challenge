@@ -1,0 +1,70 @@
+INFO:     Started server process [10913]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Started PDF processing thread pool with 8 workers per FastAPI worker
+INFO:     127.0.0.1:59531 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59531 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59577 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59602 - "GET /metrics/throughput?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59604 - "GET /metrics/system?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59607 - "GET /metrics/insights?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59608 - "GET /metrics/errors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59647 - "GET /metrics/throughput?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+Error storing scan result: 0
+INFO:     127.0.0.1:59792 - "POST /upload-and-redact HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59838 - "GET /metrics/throughput?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59840 - "GET /metrics/system?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59842 - "GET /metrics/insights?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59843 - "GET /metrics/errors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59972 - "GET /metrics/throughput?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59974 - "GET /metrics/system?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59976 - "GET /metrics/insights?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59977 - "GET /metrics/errors HTTP/1.1" 200 OK
+Error storing scan result: 0
+INFO:     127.0.0.1:60012 - "POST /upload-and-redact HTTP/1.1" 200 OK
+Error storing scan result: 0
+INFO:     127.0.0.1:60015 - "POST /upload-and-redact HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+Error storing scan result: 0
+INFO:     127.0.0.1:60018 - "POST /upload-and-redact HTTP/1.1" 200 OK
+Error storing scan result: 0
+INFO:     127.0.0.1:60017 - "POST /upload-and-redact HTTP/1.1" 200 OK
+Error storing scan result: 0
+INFO:     127.0.0.1:60019 - "POST /upload-and-redact HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60093 - "GET /metrics/throughput?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60177 - "GET /metrics/throughput?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60179 - "GET /metrics/system?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60181 - "GET /metrics/insights?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60182 - "GET /metrics/errors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59645 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60236 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60236 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60301 - "GET /metrics/throughput?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60303 - "GET /metrics/system?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60304 - "GET /metrics/insights?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60306 - "GET /metrics/errors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60236 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60358 - "GET /metrics-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60358 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60358 - "GET /metrics/throughput?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /metrics/system?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60362 - "GET /metrics/insights?minutes=60 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60364 - "GET /metrics/errors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60236 - "GET /metrics/prometheus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60364 - "GET /metrics/throughput?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60362 - "GET /metrics/system?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /metrics/insights?minutes=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60358 - "GET /metrics/errors HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [10913]

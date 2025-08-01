@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Sensitive Data Scanner & Redactor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f0f8ff;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            display: none;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .finding {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #dc3545;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Sensitive Data Scanner & Redactor</h1>
+        <p>Upload PDF files to scan for sensitive information like email addresses and Social Security numbers, then download redacted versions with sensitive data blacked out.</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>Drop PDF files here or click to select</p>
+            <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+        </div>
+        
+        <div style="text-align: center;">
+            <button id="uploadRedactBtn" onclick="uploadAndRedactFiles()">Upload, Scan & Redact</button>
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadRedactBtn = document.getElementById('uploadRedactBtn');
+        const results = document.getElementById('results');
+        
+        let selectedFiles = [];
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+            selectedFiles = files;
+            updateUploadArea();
+        }
+
+        function handleFileSelect(e) {
+            selectedFiles = Array.from(e.target.files);
+            updateUploadArea();
+        }
+
+        function updateUploadArea() {
+            if (selectedFiles.length > 0) {
+                uploadArea.innerHTML = `<p>${selectedFiles.length} PDF file(s) selected</p>`;
+            } else {
+                uploadArea.innerHTML = `<p>Drop PDF files here or click to select</p>`;
+            }
+        }
+
+        async function uploadAndRedactFiles() {
+            if (selectedFiles.length === 0) {
+                alert('Please select PDF files to upload');
+                return;
+            }
+
+            uploadRedactBtn.disabled = true;
+            results.style.display = 'block';
+            results.innerHTML = '<div class="loading">Scanning and redacting files...</div>';
+
+            try {
+                // Clear previous results
+                results.innerHTML = '';
+                
+                for (const file of selectedFiles) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    const response = await fetch('/upload-and-redact', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        displayRedactionResult(file.name, result);
+                    } else {
+                        displayError(file.name, result.detail || 'Upload and redaction failed');
+                    }
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                uploadRedactBtn.disabled = false;
+                selectedFiles = [];
+                fileInput.value = '';
+                updateUploadArea();
+            }
+        }
+
+        function displayRedactionResult(filename, result) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'success';
+            
+            let html = `<h4>${filename}</h4>`;
+            html += `<p>Status: ${result.status}</p>`;
+            
+            if (result.findings && result.findings.length > 0) {
+                html += `<p>Found ${result.findings.length} sensitive data item(s):</p>`;
+                result.findings.forEach(finding => {
+                    html += `<div class="finding">
+                        <strong>${finding.type}</strong>: ${finding.value}
+                        ${finding.page ? `(Page ${finding.page})` : ''}
+                    </div>`;
+                });
+                
+                // Add redaction information
+                if (result.redaction) {
+                    if (result.redaction.status === 'success') {
+                        html += `<div style="margin-top: 10px; padding: 10px; background: #d4edda; border-radius: 5px;">
+                            <strong>✅ Redaction Complete</strong><br>
+                            Redacted ${result.redaction.redacted_count} instance(s)<br>
+                            <button onclick="downloadRedacted('${result.document_id}', '${filename}')" 
+                                    style="margin-top: 5px; background: #28a745;">
+                                📄 Download Redacted PDF
+                            </button>
+                        </div>`;
+                    } else if (result.redaction.status === 'no_redaction_needed') {
+                        html += `<div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px;">
+                            <strong>ℹ️ No Redaction Needed</strong><br>
+                            ${result.redaction.message}
+                        </div>`;
+                    } else {
+                        html += `<div style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 5px;">
+                            <strong>❌ Redaction Failed</strong><br>
+                            ${result.redaction.error}
+                        </div>`;
+                    }
+                }
+            } else {
+                html += `<p>No sensitive data found.</p>`;
+                if (result.redaction && result.redaction.status === 'no_redaction_needed') {
+                    html += `<div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px;">
+                        <strong>ℹ️ No Redaction Needed</strong><br>
+                        No sensitive data to redact
+                    </div>`;
+                }
+            }
+            
+            resultDiv.innerHTML = html;
+            results.appendChild(resultDiv);
+        }
+
+        function displayError(filename, error) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<h4>${filename}</h4><p>Error: ${error}</p>`;
+            results.appendChild(errorDiv);
+        }
+
+
+        async function downloadRedacted(documentId, originalFilename) {
+            try {
+                const response = await fetch(`/download-redacted/${documentId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to download redacted file');
+                }
+                
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Get filename from response header or generate one
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = `${originalFilename.replace('.pdf', '')}_redacted.pdf`;
+                if (contentDisposition) {
+                    const matches = contentDisposition.match(/filename="(.+)"/);
+                    if (matches) {
+                        filename = matches[1];
+                    }
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert(`Error downloading redacted file: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

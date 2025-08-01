@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <users>
+        <default>
+            <password></password>
+            <networks incl="networks" replace="replace">
+                <ip>::1</ip>
+                <ip>127.0.0.1</ip>
+                <ip>0.0.0.0/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <databases>
+                <database>pdf_scanner</database>
+            </databases>
+            <access_management>0</access_management>
+        </default>
+    </users>
+</clickhouse>
